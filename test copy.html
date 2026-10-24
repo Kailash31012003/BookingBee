@@ -1,0 +1,468 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookingBee | Bulk SMS Sender</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px 16px;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 28px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1d4ed8;
+        }
+
+        h2 {
+            margin-top: 28px;
+            font-size: 19px;
+        }
+
+        .subtitle, .hint, .footer {
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .hint, .footer {
+            font-size: 12px;
+        }
+
+        label {
+            display: block;
+            margin: 18px 0 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        textarea, input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        textarea {
+            line-height: 1.5;
+            resize: vertical;
+        }
+
+        #phoneNumbers {
+            min-height: 150px;
+        }
+
+        #messageBody {
+            min-height: 110px;
+        }
+
+        input[type="file"] {
+            background: #fff;
+        }
+
+        .counter {
+            margin-top: 7px;
+            font-size: 13px;
+            color: #4b5563;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        button {
+            padding: 13px 18px;
+            border: none;
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .primary {
+            background: #2563eb;
+            color: white;
+            flex: 1;
+        }
+
+        .primary:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+
+        .secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .divider {
+            border: 0;
+            border-top: 1px solid #e5e7eb;
+            margin: 28px 0;
+        }
+
+        .status {
+            margin-top: 18px;
+            padding: 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .status[hidden] {
+            display: none;
+        }
+
+        .status-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .footer {
+            margin-top: 25px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            .button-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<main class="container">
+    <h1>BookingBee Bulk SMS</h1>
+    <p class="subtitle">Send SMS messages and upload recipient CSV files.</p>
+
+    <!-- Manual SMS form -->
+    <form id="smsForm">
+        <h2>1. Send SMS manually</h2>
+
+        <label for="phoneNumbers">Recipient phone numbers</label>
+        <textarea
+            id="phoneNumbers"
+            placeholder="+919444713670&#10;+919444713670&#10;+14155552671"
+            required
+        ></textarea>
+
+        <div class="hint">
+            Enter international-format numbers, one per line or separated
+            by commas, semicolons, or spaces. Duplicate numbers are preserved.
+        </div>
+
+        <div class="counter" id="numberCounter">0 recipients</div>
+
+        <label for="messageBody">SMS message</label>
+        <textarea
+            id="messageBody"
+            placeholder="Enter your SMS message..."
+            maxlength="5000"
+            required
+        ></textarea>
+
+        <div class="counter" id="messageCounter">0 characters</div>
+
+        <div class="button-row">
+            <button type="submit" class="primary" id="sendButton">
+                Send SMS
+            </button>
+            <button type="button" class="secondary" id="clearButton">
+                Clear
+            </button>
+        </div>
+
+        <div id="smsStatus" class="status" role="status"
+             aria-live="polite" hidden></div>
+    </form>
+
+    <hr class="divider">
+
+    <!-- CSV upload form -->
+    <form id="csvForm">
+        <h2>2. Upload CSV file</h2>
+
+        <label for="csvFile">Select CSV file</label>
+        <input
+            type="file"
+            id="csvFile"
+            name="file"
+            accept=".csv,text/csv"
+            required
+        >
+
+        <div class="hint">
+            The selected CSV will be uploaded to FastAPI, loaded into a
+            Pandas DataFrame, and printed in the backend terminal.
+        </div>
+
+        <div class="button-row">
+            <button type="submit" class="primary" id="uploadButton">
+                Upload CSV
+            </button>
+            <button type="button" class="secondary" id="clearCsvButton">
+                Clear file
+            </button>
+        </div>
+
+        <div id="csvStatus" class="status" role="status"
+             aria-live="polite" hidden></div>
+    </form>
+
+    <p class="footer">
+        Send SMS only to recipients who have consented. Twilio sender
+        permissions, destination-country requirements, and messaging
+        regulations apply.
+    </p>
+</main>
+
+<script>
+    // FastAPI endpoints
+    const SMS_API_URL = "http://127.0.0.1:8000/send-bulk-sms";
+    const CSV_API_URL = "http://127.0.0.1:8000/upload-csv";
+
+    const phoneInput = document.getElementById("phoneNumbers");
+    const messageInput = document.getElementById("messageBody");
+
+    const numberCounter = document.getElementById("numberCounter");
+    const messageCounter = document.getElementById("messageCounter");
+
+    const sendButton = document.getElementById("sendButton");
+    const uploadButton = document.getElementById("uploadButton");
+
+    const smsStatus = document.getElementById("smsStatus");
+    const csvStatus = document.getElementById("csvStatus");
+
+    // Preserve duplicates: do not use Set.
+    function parsePhoneNumbers(input) {
+        return input
+            .split(/[,;\s]+/)
+            .map(number => number.trim())
+            .filter(Boolean);
+    }
+
+    function isValidPhone(phone) {
+        return /^\+[1-9]\d{7,14}$/.test(phone);
+    }
+
+    function updateCounters() {
+        const numbers = parsePhoneNumbers(phoneInput.value);
+
+        numberCounter.textContent =
+            `${numbers.length} recipient${numbers.length === 1 ? "" : "s"}`;
+
+        messageCounter.textContent =
+            `${messageInput.value.length} characters`;
+    }
+
+    function showStatus(element, message, type) {
+        element.hidden = false;
+        element.className = `status status-${type}`;
+        element.textContent = message;
+    }
+
+    async function readResponse(response) {
+        const text = await response.text();
+
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch {
+            data = { detail: text };
+        }
+
+        if (!response.ok) {
+            const error = typeof data.detail === "string"
+                ? data.detail
+                : JSON.stringify(data.detail || data, null, 2);
+
+            throw new Error(`HTTP ${response.status}: ${error}`);
+        }
+
+        return data;
+    }
+
+    phoneInput.addEventListener("input", updateCounters);
+    messageInput.addEventListener("input", updateCounters);
+
+    document.getElementById("clearButton").addEventListener("click", () => {
+        document.getElementById("smsForm").reset();
+        smsStatus.hidden = true;
+        updateCounters();
+    });
+
+    document.getElementById("smsForm").addEventListener(
+        "submit",
+        async event => {
+            event.preventDefault();
+
+            const phNo = parsePhoneNumbers(phoneInput.value);
+            const MessageBody = messageInput.value.trim();
+
+            if (!phNo.length || !MessageBody) {
+                showStatus(
+                    smsStatus,
+                    "Enter a message and at least one phone number.",
+                    "error"
+                );
+                return;
+            }
+
+            const invalid = phNo.filter(phone => !isValidPhone(phone));
+
+            if (invalid.length) {
+                showStatus(
+                    smsStatus,
+                    "Invalid phone number format:\n" + invalid.join("\n"),
+                    "error"
+                );
+                return;
+            }
+
+            if (!confirm(
+                `Submit ${phNo.length} SMS message(s)?\n` +
+                "Duplicate numbers will receive repeated messages."
+            )) {
+                return;
+            }
+
+            sendButton.disabled = true;
+            sendButton.textContent = "Sending...";
+
+            showStatus(
+                smsStatus,
+                `Submitting ${phNo.length} messages...`,
+                "info"
+            );
+
+            try {
+                const response = await fetch(SMS_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        MessageBody: MessageBody,
+                        phNo: phNo
+                    })
+                });
+
+                const data = await readResponse(response);
+
+                showStatus(
+                    smsStatus,
+                    "SMS API response:\n" + JSON.stringify(data, null, 2),
+                    data.failed > 0 ? "error" : "success"
+                );
+            } catch (error) {
+                showStatus(smsStatus, error.message, "error");
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = "Send SMS";
+            }
+        }
+    );
+
+    document.getElementById("clearCsvButton").addEventListener("click", () => {
+        document.getElementById("csvForm").reset();
+        csvStatus.hidden = true;
+    });
+
+    document.getElementById("csvForm").addEventListener(
+        "submit",
+        async event => {
+            event.preventDefault();
+
+            const fileInput = document.getElementById("csvFile");
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showStatus(csvStatus, "Please select a CSV file.", "error");
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith(".csv")) {
+                showStatus(csvStatus, "Please select a .csv file.", "error");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            uploadButton.disabled = true;
+            uploadButton.textContent = "Uploading...";
+
+            showStatus(
+                csvStatus,
+                `Uploading ${file.name}...`,
+                "info"
+            );
+
+            try {
+                const response = await fetch(CSV_API_URL, {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await readResponse(response);
+
+                showStatus(
+                    csvStatus,
+                    "CSV uploaded successfully:\n" +
+                    JSON.stringify(data, null, 2),
+                    "success"
+                );
+            } catch (error) {
+                showStatus(csvStatus, error.message, "error");
+            } finally {
+                uploadButton.disabled = false;
+                uploadButton.textContent = "Upload CSV";
+            }
+        }
+    );
+
+    updateCounters();
+</script>
+</body>
+</html>

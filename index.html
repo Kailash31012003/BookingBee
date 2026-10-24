@@ -1,0 +1,269 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookingBee Bulk SMS</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            margin: 0;
+            padding: 30px 16px;
+            color: #222;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 28px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #174ea6;
+            margin-top: 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 28px;
+        }
+
+        label {
+            display: block;
+            margin: 18px 0 8px;
+            font-weight: bold;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccd0d5;
+            border-radius: 7px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        #message {
+            min-height: 110px;
+        }
+
+        #phoneNumbers {
+            min-height: 180px;
+        }
+
+        .hint {
+            color: #666;
+            font-size: 13px;
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 14px;
+            background: #174ea6;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #123c80;
+        }
+
+        button:disabled {
+            background: #8a9bb8;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 14px;
+            border-radius: 7px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            display: none;
+            font-size: 14px;
+        }
+
+        .success {
+            display: block !important;
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        .error {
+            display: block !important;
+            background: #ffebee;
+            color: #b71c1c;
+        }
+
+        .info {
+            display: block !important;
+            background: #e8f0fe;
+            color: #174ea6;
+        }
+    </style>
+</head>
+
+<body>
+    
+    <div class="container">
+        <h1>BookingBee SMS</h1>
+        <p class="subtitle">Send SMS to multiple phone numbers</p>
+
+        <form id="smsForm">
+            <label for="message">Message</label>
+            <textarea
+                id="message"
+                placeholder="Enter your SMS message..."
+                required
+            ></textarea>
+
+            <label for="phoneNumbers">Phone Numbers</label>
+            <textarea
+                id="phoneNumbers"
+                placeholder="+919876543210&#10;+14155552671&#10;+447700900123"
+                required
+            ></textarea>
+
+            <p class="hint">
+                Enter one number per line, including the country code.
+                Examples: +91 (India), +1 (USA), +44 (UK).
+            </p>
+
+            <button type="submit" id="sendButton">
+                Send SMS
+            </button>
+        </form>
+
+        <div id="result" role="status" aria-live="polite"></div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000/send-bulk-sms";
+
+        const form = document.getElementById("smsForm");
+        const sendButton = document.getElementById("sendButton");
+        const result = document.getElementById("result");
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const messageBody =
+                document.getElementById("message").value.trim();
+
+            const phNo = [
+                ...new Set(
+                    document.getElementById("phoneNumbers").value
+                        .split(/\r?\n/)
+                        .map(number => number.trim())
+                        .filter(Boolean)
+                )
+            ];
+
+            if (!messageBody || phNo.length === 0) {
+                showResult("Enter a message and at least one phone number.", "error");
+                return;
+            }
+
+            const invalidNumbers = phNo.filter(
+                number => !/^\+[1-9]\d{1,14}$/.test(number)
+            );
+
+            if (invalidNumbers.length > 0) {
+                showResult(
+                    "Invalid phone numbers:\n" + invalidNumbers.join("\n") +
+                    "\nUse international format, e.g. +919876543210.",
+                    "error"
+                );
+                return;
+            }
+
+            const confirmed = confirm(
+                `Send this message to ${phNo.length} number(s)?\n\n` +
+                messageBody
+            );
+
+            if (!confirmed) return;
+
+            sendButton.disabled = true;
+            sendButton.textContent = "Sending...";
+            showResult("Submitting SMS requests. Please wait...", "info");
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        messageBody: messageBody,
+                        phNo: phNo
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.detail
+                            ? JSON.stringify(data.detail, null, 2)
+                            : "HTTP error " + response.status
+                    );
+                }
+
+                const lines = [
+                    `Total numbers: ${data.total}`,
+                    "",
+                    ...data.results.map(item =>
+                        `${item.phone}: ${item.success ? "Submitted" : "Failed"}` +
+                        (item.status ? ` (${item.status})` : "") +
+                        (item.message_sid ? `\nSID: ${item.message_sid}` : "") +
+                        (item.error ? `\nError: ${item.error}` : "")
+                    )
+                ];
+
+                const allSucceeded = data.results.every(item => item.success);
+
+                showResult(
+                    lines.join("\n"),
+                    allSucceeded ? "success" : "error"
+                );
+
+            } catch (error) {
+                showResult(
+                    "Unable to send SMS.\n" + error.message +
+                    "\n\nCheck that the FastAPI server is running and accessible.",
+                    "error"
+                );
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = "Send SMS";
+            }
+        });
+
+        function showResult(message, type) {
+            result.textContent = message;
+            result.className = type;
+        }
+    </script>
+</body>
+</html>

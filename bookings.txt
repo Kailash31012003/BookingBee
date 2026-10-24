@@ -1,0 +1,2 @@
+[2026-10-24 12:59:37] name=Arun | phone=+919444713670 | service=haircut | date=2026-10-26 | time=6:00 PM | notes=-
+[2026-10-24 13:08:03] name=Arun | phone=+13023033120 | service=manicure | date=next Monday | time=2 PM | notes=-
